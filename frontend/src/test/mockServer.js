@@ -24,7 +24,7 @@ export const META = {
   alertTypes: ["AML", "Sanctions", "PEP", "Fraud", "Adverse Media", "KYC Incomplete"],
   statuses: ["Open", "Under Review", "Closed"],
   severities: ["Low", "Medium", "High"],
-  roles: ["Admin", "Analyst", "Auditor", "Viewer"],
+  roles: ["Admin", "Analyst", "Auditor", "Viewer", "Pending"],
   auditActions: [
     "alert.create", "alert.update", "alert.delete", "user.role_change",
     "auth.sign_up", "auth.sign_in", "auth.sign_in_failed", "auth.sign_out",
@@ -36,6 +36,7 @@ export const PERMISSIONS = {
   Analyst: ["alert:read", "alert:create", "alert:update"],
   Auditor: ["alert:read", "audit:read"],
   Admin: ["alert:read", "alert:create", "alert:update", "alert:delete", "user:manage", "audit:read"],
+  Pending: [],
 };
 
 export const PASSWORD = "password123";
@@ -139,10 +140,11 @@ export function installMockServer({ alerts = SEED, audit: seedAudit = [] } = {})
     SignUp: ({ input }) => {
       const email = input.email.trim().toLowerCase();
       if (users.some((u) => u.email === email)) throw new Error("An account with this email already exists");
-      const u = { id: users.length + 1, email, name: input.name, password: input.password, role: "Viewer" };
+      const u = { id: users.length + 1, email, name: input.name, password: input.password, role: "Pending" };
       users.push(u);
       return { signUp: startSession(u) };
     },
+    Me: (_vars, { user }) => ({ me: user ? publicUser(user) : null }),
     SignOut: (_vars, { token }) => {
       sessions.delete(token);
       return { signOut: true };
@@ -253,6 +255,8 @@ export function installMockServer({ alerts = SEED, audit: seedAudit = [] } = {})
     ops: () => calls.map((c) => c.op),
     failNext: (op, message) => { failures[op] = message; },
     expireSessions: () => sessions.clear(),
+    /** Change a user's role behind the UI's back (e.g. an Admin approving a Pending sign-up). */
+    setRole: (email, role) => { users.find((u) => u.email === email).role = role; },
     audit: () => audit,
   };
 }

@@ -62,7 +62,7 @@ class TestRaces:
             lambda: db.create_user("one@test.io", "One", "password123"),
             lambda: db.create_user("two@test.io", "Two", "password123"),
         )
-        assert sorted(u["role"] for u in db.list_users()) == ["Admin", "Viewer"]
+        assert sorted(u["role"] for u in db.list_users()) == ["Admin", "Pending"]
 
     def test_duplicate_signup_race_gives_friendly_error(self, monkeypatch):
         real_hash = db.hash_password
@@ -145,3 +145,16 @@ class TestSignInHardening:
             db.authenticate("x" * 1_000_000, "p" * 1_000_000)
         [entry] = db.list_audit(action="auth.sign_in_failed")[0]
         assert len(entry["changes"]["email"][1]) <= db.MAX_EMAIL_LENGTH
+
+
+class TestGraphQLWebSocketsDisabled:
+    """The schema has no subscriptions, so /graphql must refuse WebSocket upgrades
+    (closes the legacy graphql-ws auth bypass and subscription DoS advisories)."""
+
+    @pytest.mark.parametrize("protocol", ["graphql-transport-ws", "graphql-ws"])
+    def test_websocket_upgrade_is_refused(self, anon_client, protocol):
+        from starlette.websockets import WebSocketDisconnect
+        with pytest.raises(WebSocketDisconnect) as exc:
+            with anon_client.websocket_connect("/graphql", subprotocols=[protocol]) as ws:
+                ws.receive_text()
+        assert exc.value.code == 4406  # Strawberry: "Subprotocol not acceptable"

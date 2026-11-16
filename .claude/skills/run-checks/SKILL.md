@@ -46,7 +46,7 @@ ALERTS_DB_PATH="$SCRATCH/e2e.db" uvicorn main:app --port $PORT > "$SCRATCH/uv.lo
 **Check that the port is free first.** A leftover smoke-test server from an earlier session will keep answering with *old* code while the new one silently fails to bind. The symptom is errors like "Cannot query field …" for fields you just added.
 
 Then:
-- Sign up two users through `signUp`. The first should come back as `Admin`, the second as `Viewer`.
+- Sign up two users through `signUp`. The first should come back as `Admin`, the second as `Pending` with no permissions. Promote it to `Viewer` with `setUserRole` using the Admin token.
 - `{ alerts { id } }` with no header should return `extensions.code = "UNAUTHENTICATED"`.
 - `deleteAlert` with the Viewer token should return `FORBIDDEN`. With the Admin token it should succeed.
 - REST `DELETE /api/alerts/2` should return 401 (no token), 403 (Viewer) and 204 (Admin).

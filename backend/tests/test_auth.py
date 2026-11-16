@@ -52,15 +52,27 @@ class TestPasswords:
 # ---------- GraphQL: sign up / sign in ----------
 
 class TestSignUp:
-    def test_first_user_is_admin_then_viewers(self, anon_gql):
+    def test_first_user_is_admin_then_pending(self, anon_gql):
         first = sign_up(anon_gql)["data"]["signUp"]
         assert first["user"]["role"] == "Admin"
         assert "user:manage" in first["user"]["permissions"]
         assert first["token"]
 
         second = sign_up(anon_gql, email="bo@test.io", name="Bo")["data"]["signUp"]
-        assert second["user"]["role"] == "Viewer"
-        assert second["user"]["permissions"] == ["alert:read"]
+        # Open sign-up must not grant data access: later users wait for an Admin.
+        assert second["user"]["role"] == "Pending"
+        assert second["user"]["permissions"] == []
+
+    def test_pending_user_sees_only_themself_until_promoted(self, anon_gql):
+        admin = sign_up(anon_gql)["data"]["signUp"]["token"]
+        bo = sign_up(anon_gql, email="bo@test.io", name="Bo")["data"]["signUp"]
+        me = anon_gql("{ me { email role permissions } }", token=bo["token"])["data"]["me"]
+        assert me == {"email": "bo@test.io", "role": "Pending", "permissions": []}
+        assert error(anon_gql(ALERTS, token=bo["token"]))["extensions"]["code"] == "FORBIDDEN"
+
+        set_role = 'mutation($id: Int!) { setUserRole(id: $id, role: "Viewer") { role } }'
+        assert anon_gql(set_role, {"id": int(bo["user"]["id"])}, token=admin)["data"]["setUserRole"]["role"] == "Viewer"
+        assert not anon_gql(ALERTS, token=bo["token"]).get("errors")  # same session, access now granted
 
     def test_role_cannot_be_chosen_by_client(self, anon_gql):
         body = anon_gql("""mutation { signUp(input: {email: "x@y.io", name: "X", password: "password123", role: "Admin"}) { token } }""")
@@ -139,7 +151,7 @@ class TestGraphQLRBAC:
         assert err["message"] == "Not signed in"
         assert err["extensions"]["code"] == "UNAUTHENTICATED"
 
-    @pytest.mark.parametrize("role", ["Viewer", "Analyst", "Auditor", "Admin"])
+    @pytest.mark.parametrize("role", ["Pending", "Viewer", "Analyst", "Auditor", "Admin"])
     @pytest.mark.parametrize("op", list(MATRIX))
     def test_permission_matrix(self, anon_gql, token_for, role, op):
         body = anon_gql(op, token=token_for(role))
@@ -212,6 +224,9 @@ class TestREST:
         assert getattr(anon_client, method)(path).status_code == 401
 
     @pytest.mark.parametrize("role,method,path,body,expected", [
+        ("Pending", "get", "/api/alerts", None, 403),
+        ("Pending", "get", "/api/alerts/1", None, 403),
+        ("Pending", "get", "/api/meta", None, 403),
         ("Viewer", "get", "/api/alerts", None, 200),
         ("Viewer", "patch", "/api/alerts/1", {"notes": "x"}, 403),
         ("Analyst", "patch", "/api/alerts/1", {"notes": "x"}, 200),

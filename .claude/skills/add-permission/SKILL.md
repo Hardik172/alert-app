@@ -24,7 +24,7 @@ Change only `ROLE_PERMISSIONS` and the mirrored `PERMISSIONS` in `mockServer.js`
 
 1. Add it to the `Role` enum in `backend/db.py` and to `ROLE_PERMISSIONS`.
 2. The frontend gets roles from `meta.roles`, so the Users admin dropdown picks it up automatically. Add a `.role-<name>` badge style in `styles.css` using existing color tokens, a `ROLE_HELP` entry in `UserAdmin.jsx`, and an entry in `META.roles` in the mock.
-3. Decide with the user whether new sign-ups should get this role. Don't change the default (first user Admin, then Viewer) without being asked.
+3. Decide with the user whether new sign-ups should get this role. Don't change the default (first user Admin, then Pending) without being asked.
 
 ## Invariants to preserve
 

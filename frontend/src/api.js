@@ -82,6 +82,9 @@ export const api = {
 
   signOut: () => gql(`mutation SignOut { signOut }`),
 
+  /** Current user (works with no permissions, e.g. a Pending account). */
+  me: () => gql(`query Me { me { ...UserFields } } ${USER_FIELDS}`).then((d) => d.me),
+
   users: () =>
     gql(`query Users { users { ...UserFields } } ${USER_FIELDS}`).then((d) => d.users),
 

@@ -7,7 +7,8 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from starlette.requests import HTTPConnection
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, StringConstraints, model_validator
@@ -127,7 +128,9 @@ def require(permission: str):
     return dependency
 
 
-def graphql_context(request: Request) -> dict:
+def graphql_context(request: HTTPConnection) -> dict:
+    # HTTPConnection (not Request) so a WebSocket attempt reaches Strawberry, which then
+    # rejects it cleanly because subscription_protocols is empty.
     token = auth.token_from_header(request.headers.get("authorization"))
     return {"token": token, "user": db.user_for_token(token)}
 
@@ -147,7 +150,11 @@ app.add_middleware(
 )
 
 # GraphQL endpoint (GraphiQL explorer available at GET /graphql in a browser)
-app.include_router(GraphQLRouter(schema, context_getter=graphql_context), prefix="/graphql")
+# The schema has no subscriptions, so WebSocket protocols are turned off (closes the graphql-ws attack surface).
+app.include_router(
+    GraphQLRouter(schema, context_getter=graphql_context, subscription_protocols=()),
+    prefix="/graphql",
+)
 
 
 def _or_404(fn, *args):

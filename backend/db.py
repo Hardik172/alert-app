@@ -41,6 +41,7 @@ class Role(str, Enum):
     ANALYST = "Analyst"
     AUDITOR = "Auditor"
     VIEWER = "Viewer"
+    PENDING = "Pending"  # new sign-ups: no access until an Admin assigns a role
 
 
 class NotFoundError(Exception):
@@ -333,7 +334,7 @@ def create_user(email: str, name: str, password: str, role: Optional[str] = None
             raise AuthError("An account with this email already exists")
         if role is None:
             first = db.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0
-            role = Role.ADMIN.value if first else Role.VIEWER.value
+            role = Role.ADMIN.value if first else Role.PENDING.value
         try:
             cur = db.execute(
                 "INSERT INTO users (email, name, password_hash, role, created_at) VALUES (?,?,?,?,?)",
