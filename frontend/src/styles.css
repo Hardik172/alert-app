@@ -182,6 +182,7 @@ td.empty { text-align: center; color: var(--muted); padding: 32px; cursor: defau
 .role-admin { background: var(--purple-bg); color: var(--purple); }
 .role-analyst { background: var(--blue-bg); color: var(--blue); }
 .role-viewer { background: var(--gray-bg); color: var(--muted); }
+.role-pending { background: transparent; color: var(--muted); border: 1px dashed var(--muted); }
 .modal.wide { max-width: 680px; }
 .modal.wide .panel-head { margin-bottom: 12px; }
 .modal.wide h2 { margin-bottom: 0; }

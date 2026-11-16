@@ -21,6 +21,8 @@ ROLE_PERMISSIONS = {
     # Read-only oversight: sees everything, changes nothing (separation of duties).
     Role.AUDITOR.value: [ALERT_READ, AUDIT_READ],
     Role.ADMIN.value: [ALERT_READ, ALERT_CREATE, ALERT_UPDATE, ALERT_DELETE, USER_MANAGE, AUDIT_READ],
+    # Self sign-ups land here and can see nothing until an Admin assigns a real role.
+    Role.PENDING.value: [],
 }
 
 

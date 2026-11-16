@@ -10,12 +10,13 @@ Users must **sign in** (or **sign up**) to use the app, and what they can do dep
 
 | Role | Can |
 |---|---|
+| **Pending** | Nothing. New sign-ups wait here until an Admin assigns a role |
 | **Viewer** | View alerts, stats and details (read-only) |
 | **Analyst** | Everything a Viewer can, plus flag clients (create alerts) and change status / severity / notes |
 | **Auditor** | Everything a Viewer can, plus the full **Audit log** and CSV export. Can't change anything (separation of duties) |
 | **Admin** | Everything, plus delete alerts, change other users' roles (**Users** button) and the **Audit log** |
 
-- The **first account created becomes Admin**. Everyone who signs up after that starts as **Viewer**; an admin promotes them. Users can never pick their own role.
+- The **first account created becomes Admin**. Everyone who signs up after that starts as **Pending** with no access, and sees a "Waiting for access" screen until an admin gives them a role. Users can never pick their own role.
 - The last remaining Admin can't be demoted, so you can't lock yourself out.
 - Role changes take effect immediately, even for users who are already signed in.
 - Sign-up page: http://localhost:5173/#/signup
@@ -66,12 +67,12 @@ Open http://localhost:5173. The Vite dev server proxies `/graphql` and `/api` to
 ## Run the tests
 
 ```bash
-# Backend: pytest (209 tests)
+# Backend: pytest (226 tests)
 cd backend
 pip install -r requirements-dev.txt
 pytest
 
-# Frontend: Vitest + React Testing Library (63 tests)
+# Frontend: Vitest + React Testing Library (65 tests)
 cd frontend
 npm test            # single run
 npm run test:watch  # re-run on save
@@ -85,7 +86,7 @@ Backend tests use a temporary SQLite file per test, so they never touch `alerts.
 | `backend/tests/test_graphql.py` | Queries, filters, mutations returning fresh stats, input validation, not-found errors |
 | `backend/tests/test_rest.py` | REST endpoints, status codes (201/204/404/422) |
 | `backend/tests/test_auth.py` | Password hashing, sessions/expiry, sign up/in/out, full role × operation permission matrix (GraphQL + REST), user role management, last-admin guard |
-| `backend/tests/test_review_fixes.py` | Regression tests from the pre-push review: concurrent last-admin / first-user / duplicate-email races, deleted-alert history access, REST null and blank-field validation, sign-in timing and input length limits |
+| `backend/tests/test_review_fixes.py` | Regression tests from the pre-push review: concurrent last-admin / first-user / duplicate-email races, deleted-alert history access, REST null and blank-field validation, sign-in timing and input length limits, GraphQL WebSockets refused |
 | `backend/tests/test_audit.py` | Every write is audited with the right actor and diff, no-op updates aren't, the change and its audit row roll back together, append-only triggers, failed sign-ins never store passwords, snapshot visibility, filters/pagination, CSV export and formula escaping |
 | `frontend/src/api.test.js` | GraphQL client: request shape, empty-filter stripping, error handling, `matchesFilter` |
 | `frontend/src/Auth.test.jsx` | Sign in / sign up / sign out, validation, expired sessions, what each role sees, admin role changes |

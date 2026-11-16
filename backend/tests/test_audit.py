@@ -77,10 +77,10 @@ class TestRecording:
         assert [e["action"] for e in audit_rows(entity_type="alert", entity_id=3)] == ["alert.delete"]
 
     def test_role_change(self, admin):
-        viewer = db.create_user("v@test.io", "Vee", "password123")
-        db.set_user_role(viewer["id"], "Auditor", admin)
+        pending = db.create_user("v@test.io", "Vee", "password123")
+        db.set_user_role(pending["id"], "Auditor", admin)
         [entry] = audit_rows(action="user.role_change")
-        assert entry["changes"] == {"role": ["Viewer", "Auditor"]}
+        assert entry["changes"] == {"role": ["Pending", "Auditor"]}
         assert entry["snapshot"] == {"email": "v@test.io", "name": "Vee"}
         assert entry["actor_name"] == "Ada Admin"
 

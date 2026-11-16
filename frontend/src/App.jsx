@@ -17,6 +17,7 @@ const EMPTY_FORM = {
 };
 
 const PERM = {
+  read: "alert:read",
   create: "alert:create",
   update: "alert:update",
   delete: "alert:delete",
@@ -287,6 +288,16 @@ function Dashboard({ user, onUser, onSignOut, onExpired, themeSwitch }) {
         setError("");
       } catch (e) {
         if (e.name === "AbortError" || handleAuthError(e)) return;
+        // Signed in but without alert access (e.g. a Pending account after a reload):
+        // fetch `me` so the App gate can show the "waiting for access" screen instead.
+        if (first && e.code === "FORBIDDEN") {
+          try {
+            const me = await api.me();
+            if (me && !me.permissions.includes(PERM.read)) return onUser(me);
+          } catch (e2) {
+            if (handleAuthError(e2)) return;
+          }
+        }
         setError(e.code ? e.message : `Could not reach the API: ${e.message}`);
       } finally {
         if (!ctrl.signal.aborted) setLoading(false);
@@ -476,6 +487,46 @@ function Dashboard({ user, onUser, onSignOut, onExpired, themeSwitch }) {
   );
 }
 
+/** Shown to signed-in users with no alert access (new sign-ups waiting for an Admin). */
+function PendingAccess({ user, onUser, onSignOut, onExpired, themeSwitch }) {
+  const [checking, setChecking] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const checkAgain = async () => {
+    setChecking(true);
+    setMessage("");
+    try {
+      const me = await api.me();
+      if (!me) return onExpired();
+      onUser(me);
+      if (!me.permissions.includes(PERM.read)) setMessage("Still waiting. An Admin hasn't given you access yet.");
+    } catch (e) {
+      setMessage(e.message);
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  return (
+    <div className="auth-page">
+      <div className="auth-theme">{themeSwitch}</div>
+      <div className="auth-card">
+        <div className="auth-brand">Client Alerts</div>
+        <h1>Waiting for access</h1>
+        <p>
+          Your account <strong>{user.email}</strong> was created. An Admin needs to give you a role before
+          you can see any alerts.
+        </p>
+        {message && <p className="notice" role="status">{message}</p>}
+        <button className="btn primary" onClick={checkAgain} disabled={checking}>
+          {checking ? "Checking…" : "Check again"}
+        </button>{" "}
+        <button className="btn ghost" onClick={onSignOut}>Sign out</button>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Auth gate. With a stored token we go straight to the dashboard, whose single
  * InitialLoad request also returns `me` (so page load stays one request).
@@ -507,9 +558,15 @@ export default function App() {
     endSession("You have been signed out.");
   };
 
+  const onExpired = () => endSession("Your session has expired. Please sign in again.");
+
   if (!signedIn) return <AuthPage notice={notice} onAuth={handleAuth} themeSwitch={themeSwitch} />;
+  if (user && !user.permissions.includes(PERM.read)) {
+    return <PendingAccess user={user} onUser={setUser} onSignOut={handleSignOut}
+      onExpired={onExpired} themeSwitch={themeSwitch} />;
+  }
   return (
     <Dashboard user={user} onUser={setUser} onSignOut={handleSignOut} themeSwitch={themeSwitch}
-      onExpired={() => endSession("Your session has expired. Please sign in again.")} />
+      onExpired={onExpired} />
   );
 }

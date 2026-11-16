@@ -6,6 +6,7 @@ export const ROLE_HELP = {
   Analyst: "Create and update alerts",
   Auditor: "Read-only, plus the full audit log and CSV export",
   Admin: "Everything, incl. deleting alerts and managing users",
+  Pending: "New sign-up. No access until an Admin assigns a role",
 };
 
 /** Admin-only: list users and change their role. */

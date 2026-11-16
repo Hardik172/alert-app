@@ -314,7 +314,7 @@ class Mutation:
 
     @strawberry.mutation
     def sign_up(self, input: SignUpInput) -> AuthPayload:
-        """Self sign-up. Role is assigned by the server (first user Admin, then Viewer), never by the client."""
+        """Self sign-up. Role is assigned by the server (first user Admin, then Pending with no access), never by the client."""
         try:
             user = db.create_user(input.email, input.name, input.password)
         except db.AuthError as e:

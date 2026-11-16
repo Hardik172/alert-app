@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import App from "./App";
@@ -110,14 +110,38 @@ describe("sign up", () => {
     await user.click(screen.getByRole("button", { name: "Create account" }));
   }
 
-  it("creates a Viewer account and signs straight in", async () => {
+  it("creates a Pending account that waits for an Admin and loads no alert data", async () => {
     const { server, user } = start();
     await fillSignUp(user);
-    expect(await screen.findByText("John Smith")).toBeInTheDocument();
-    expect(screen.getByText("Nia New")).toBeInTheDocument();
-    expect(screen.getByLabelText("Role: Viewer")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Waiting for access" })).toBeInTheDocument();
+    expect(screen.getByText("nia@test.io")).toBeInTheDocument();
+    expect(screen.queryByText("John Smith")).not.toBeInTheDocument();
     expect(server.calls[0].variables).toEqual({ input: { name: "Nia New", email: "nia@test.io", password: "longpassword" } });
-    expect(screen.queryByRole("button", { name: "+ Flag client" })).not.toBeInTheDocument();
+    expect(server.ops()).toEqual(["SignUp"]);
+  });
+
+  it("lets a Pending user check again and opens the dashboard once an Admin grants access", async () => {
+    const { server, user } = start();
+    await fillSignUp(user);
+    await user.click(await screen.findByRole("button", { name: "Check again" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Still waiting");
+
+    server.setRole("nia@test.io", "Viewer");
+    await user.click(screen.getByRole("button", { name: "Check again" }));
+    expect(await screen.findByText("John Smith")).toBeInTheDocument();
+    expect(screen.getByLabelText("Role: Viewer")).toBeInTheDocument();
+    expect(server.ops()).toEqual(["SignUp", "Me", "Me", "InitialLoad"]);
+  });
+
+  it("shows the waiting screen again after a reload with a Pending session", async () => {
+    const { server, user } = start();
+    await fillSignUp(user);
+    await screen.findByRole("heading", { name: "Waiting for access" });
+    cleanup();
+    render(<App />);
+    expect(await screen.findByRole("heading", { name: "Waiting for access" })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(server.ops()).toEqual(["SignUp", "InitialLoad", "Me"]);
   });
 
   it("validates password length and confirmation before calling the API", async () => {
